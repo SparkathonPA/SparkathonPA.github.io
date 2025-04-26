@@ -8,13 +8,15 @@ import re
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'
-app.secret_key = os.environ.get('SECRET_KEY', 'your_default_secret_key')
+
+# Make sure upload folder exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# OpenAI API Key
+api_key = "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"
 
 # Allowed file types
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
-# OpenAI API Key (should be set as an environment variable)
-api_key = os.environ.get('OPENAI_API_KEY')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -45,7 +47,7 @@ def get_allergen_info(image_path, allergies):
                 "content": [
                     {
                         "type": "text",
-                        "text": f"Can you identify this food? What ingredients might it contain and are there any possible food allergens in it? Known allergies: {allergies}. Also, provide a confidence score (0-100%). If unsure, list likely ingredients."
+                        "text": f"Can you identify this food? What ingredients might it contain and are there any possible food allergens in it? Known allergies: {allergies}. Also, provide a confidence score (0-100%) on how certain you are about the ingredients and allergens. If unsure, still provide likely ingredients based on common dishes."
                     },
                     {
                         "type": "image_url",
@@ -66,12 +68,12 @@ def get_allergen_info(image_path, allergies):
         confidence_score = extract_confidence(content)
 
         if confidence_score < 99:
-            explanation = "**⚠️ AI Uncertainty Warning:**\n\nThe AI is not fully confident about all ingredients and allergens. Double-check manually!"
-            return f"**Possible Ingredients and Allergens:**\n{content}\n\n{explanation}"
+            explanation = "The AI is not fully confident about all ingredients and allergens in this dish. This may be due to factors such as blended sauces, enclosed food (e.g., burritos), or visually ambiguous ingredients. Below is a possible list of ingredients and allergens, but please verify manually."
+            return f"**Possible Ingredients and Allergens:**\n{content}\n\n**Uncertain Identification:**\n\n{explanation}"
         else:
             return content
     else:
-        return "**Error:** Could not process image. Please try again."
+        return "Error processing the image. Please try again."
 
 @app.route('/', methods=['GET'])
 def index():
@@ -80,7 +82,7 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     file = request.files.get('file')
-    allergies = request.form.get('allergies')  # fix: match form name
+    allergies = request.form.get('allergies')  # <-- Fixed here
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -89,7 +91,6 @@ def upload_file():
 
         result = get_allergen_info(file_path, allergies)
         result_html = markdown(result)
-
         return render_template('result.html', result=result_html)
     else:
         flash('Invalid file type or no file uploaded')
