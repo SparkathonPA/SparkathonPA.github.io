@@ -1,3 +1,23 @@
+from flask import Flask, request, render_template
+import os, traceback
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
+# ... your existing routes ...
+
+# Add this at the bottom, before the __main__ block:
+@app.errorhandler(Exception)
+def handle_all_errors(e):
+    tb = traceback.format_exc()
+    print(tb)  # also logs it to Render logs
+    return f"<pre>{tb}</pre>", 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
+
+'''
 import os
 import base64
 import requests
@@ -102,3 +122,4 @@ def upload_file():
         return redirect(request.url)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+'''
