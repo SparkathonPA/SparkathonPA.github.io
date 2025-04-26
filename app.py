@@ -10,7 +10,12 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'
 
 # Make sure upload folder exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+if not os.path.isdir(app.config['UPLOAD_FOLDER']):
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not create upload folder: {e}")
+
 
 # OpenAI API Key
 api_key = "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"
