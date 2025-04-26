@@ -100,6 +100,5 @@ def upload_file():
     else:
         flash('Invalid file type or no file uploaded')
         return redirect(request.url)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
