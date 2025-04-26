@@ -1,27 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from werkzeug.utils import secure_filename
 import os
 import base64
 import requests
+from flask import Flask, render_template, request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
+from PIL import Image
 from markdown import markdown
 import re
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads/'
-
-# Make sure upload folder exists
-if not os.path.isdir(app.config['UPLOAD_FOLDER']):
-    try:
-        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    except Exception as e:
-        print(f"Warning: Could not create upload folder: {e}")
-
+app.secret_key = 'supersecretkey123'  # ← Example, you can change it
+UPLOAD_FOLDER = 'static/uploads/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # OpenAI API Key
 api_key = "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"
 
-# Allowed file types
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -45,7 +40,7 @@ def get_allergen_info(image_path, allergies):
     }
 
     payload = {
-        "model": "gpt-4o",
+        "model": "gpt-4-vision-preview",  # use correct model for image understanding
         "messages": [
             {
                 "role": "user",
@@ -55,10 +50,8 @@ def get_allergen_info(image_path, allergies):
                         "text": f"Can you identify this food? What ingredients might it contain and are there any possible food allergens in it? Known allergies: {allergies}. Also, provide a confidence score (0-100%) on how certain you are about the ingredients and allergens. If unsure, still provide likely ingredients based on common dishes."
                     },
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
+                        "type": "image",
+                        "image": base64_image
                     }
                 ]
             }
@@ -73,22 +66,26 @@ def get_allergen_info(image_path, allergies):
         confidence_score = extract_confidence(content)
 
         if confidence_score < 99:
-            explanation = "The AI is not fully confident about all ingredients and allergens in this dish. This may be due to factors such as blended sauces, enclosed food (e.g., burritos), or visually ambiguous ingredients. Below is a possible list of ingredients and allergens, but please verify manually."
+            explanation = "The AI is not fully confident about all ingredients and allergens in this dish. Below is a possible list of ingredients and allergens, but please verify manually."
             return f"**Possible Ingredients and Allergens:**\n{content}\n\n**Uncertain Identification:**\n\n{explanation}"
         else:
             return content
     else:
         return "Error processing the image. Please try again."
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    file = request.files.get('file')
-    allergies = request.form.get('allergies')  # <-- Fixed here
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(url_for('index'))
 
+    file = request.files['file']
+    allergies = request.form.get('allergies')
+    
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -96,10 +93,11 @@ def upload_file():
 
         result = get_allergen_info(file_path, allergies)
         result_html = markdown(result)
+
         return render_template('result.html', result=result_html)
     else:
         flash('Invalid file type or no file uploaded')
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+    app.run(debug=True)
