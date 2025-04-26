@@ -9,9 +9,9 @@ import re
 
 # Flask app setup
 app = Flask(__name__)
+app.debug = True
 UPLOAD_FOLDER = 'static/uploads/'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
 # OpenAI API Key
 api_key = "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"
 
