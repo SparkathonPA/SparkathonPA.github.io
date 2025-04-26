@@ -1,13 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
 import os
+from markdown import markdown
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'
 
+# Define allowed extensions
+def allowed_file(filename):
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -24,9 +30,7 @@ def upload_file():
         return render_template('result.html', result=result_html)
     else:
         flash('Invalid file type or no file uploaded')
-        # redirect back to index page
         return redirect(url_for('index'))
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
