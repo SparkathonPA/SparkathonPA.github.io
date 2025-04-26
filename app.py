@@ -1,20 +1,35 @@
-from flask import Flask, request, render_template
-import os, traceback
+from flask import Flask, render_template, request, redirect, url_for, flash
+import os
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = 'static/uploads/'
 
-# ... your existing routes ...
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
-# Add this at the bottom, before the __main__ block:
-@app.errorhandler(Exception)
-def handle_all_errors(e):
-    tb = traceback.format_exc()
-    print(tb)  # also logs it to Render logs
-    return f"<pre>{tb}</pre>", 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    file = request.files.get('file')
+    allergies = request.form.getlist('allergen')
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        result = get_allergen_info(file_path, allergies)
+        result_html = markdown(result)
+        return render_template('result.html', result=result_html)
+    else:
+        flash('Invalid file type or no file uploaded')
+        # redirect back to index page
+        return redirect(url_for('index'))
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
 
 
 '''
