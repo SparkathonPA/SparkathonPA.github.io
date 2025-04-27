@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Food Allergen Finder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Nunito', sans-serif;
+      margin: 0;
+      background: linear-gradient(to bottom right, #fff5e6, #f9fff5);
+      color: #2c3e50;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #ff7f50;
+      font-size: 3rem;
+      margin: 20px 0;
+      text-align: center;
+    }
+    form {
+      background-color: #ffffff;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 650px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    label {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #2c3e50;
+      text-align: left;
+    }
+    .small-label {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border: 2px solid #ffa07a;
+      border-radius: 8px;
+      background-color: #fffdf8;
+    }
+    button {
+      padding: 14px;
+      background-color: #ffa07a;
+      color: white;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #ff7f50;
+    }
+    .result-container {
+      margin-top: 30px;
+      padding: 30px;
+      background-color: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      max-width: 700px;
+      width: 100%;
+      text-align: left;
+      overflow-wrap: break-word;
+      line-height: 1.6;
+      font-size: 1rem;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #result strong {
+      font-size: 1.3rem;
+      display: block;
+      margin-bottom: 10px;
+      color: #ff7f50;
+    }
+    /* Custom Spinner (Fork and Spoon Icon) */
+    .spinner {
+      margin-top: 20px;
+      width: 60px;
+      height: 60px;
+      background-image: url('https://cdn-icons-png.flaticon.com/512/1046/1046784.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      animation: spin 1.5s linear infinite;
+      display: none;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #loading-text {
+      font-size: 1.2rem;
+      margin-top: 10px;
+      color: #2c3e50;
+      display: none;
+      height: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Food Allergen Finder</h1>
+
+  <form id="uploadForm">
+    <label for="allergies">Enter your food allergies or restrictions:</label>
+    <span class="small-label">(Separate them with commas)</span>
+    <input type="text" id="allergies" name="allergies" placeholder="e.g., peanuts, dairy" required>
+
+    <label for="file">Upload a picture of the food:</label>
+    <input type="file" id="file" accept="image/*" required>
+
+    <button type="submit">Analyze Food</button>
+  </form>
+
+  <div class="spinner" id="spinner"></div>
+  <div id="loading-text">Thinking...</div>
+
+  <div id="result" class="result-container"></div>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const fileInput = document.getElementById("file");
+    const allergiesInput = document.getElementById("allergies");
+    const resultDiv = document.getElementById("result");
+    const spinner = document.getElementById("spinner");
+    const loadingText = document.getElementById("loading-text");
+
+    let thinkingInterval;
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      if (fileInput.files.length === 0) {
+        alert("Please upload an image.");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const allergies = allergiesInput.value.trim();
+      const reader = new FileReader();
+
+      spinner.style.display = "block";
+      loadingText.style.display = "block";
+      resultDiv.style.display = "none";
+      resultDiv.style.opacity = 0;
+
+      // Start "Thinking..." animation
+      startThinkingAnimation();
+
+      reader.onload = async function(event) {
+        const base64Image = event.target.result.split(",")[1];
+
+        try {
+          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer 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"
+            },
+            body: JSON.stringify({
+              model: "gpt-4o",
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `Can you identify this food? What ingredients might it contain and are there any possible allergens? Known allergies: ${allergies}. Provide a confidence score.`
+                    },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:image/jpeg;base64,${base64Image}`
+                      }
+                    }
+                  ]
+                }
+              ],
+              max_tokens: 400
+            })
+          });
+
+          const result = await response.json();
+          const content = result.choices?.[0]?.message?.content || "Error processing image.";
+
+          resultDiv.innerHTML = `<strong>Result:</strong><br>${content.replace(/\n/g, "<br>")}`;
+          resultDiv.style.display = "block";
+
+          setTimeout(() => {
+            resultDiv.style.opacity = 1;
+            resultDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+
+        } catch (error) {
+          resultDiv.innerHTML = "<strong>Error:</strong> Something went wrong while analyzing the image.";
+          resultDiv.style.display = "block";
+        } finally {
+          spinner.style.display = "none";
+          loadingText.style.display = "none";
+          stopThinkingAnimation();
+        }
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    function startThinkingAnimation() {
+      let dots = 0;
+      loadingText.textContent = "Thinking";
+      thinkingInterval = setInterval(() => {
+        dots = (dots + 1) % 4;
+        loadingText.textContent = "Thinking" + ".".repeat(dots);
+      }, 500);
+    }
+
+    function stopThinkingAnimation() {
+      clearInterval(thinkingInterval);
+      loadingText.textContent = "";
+    }
+  </script>
+
+</body>
+</html>
